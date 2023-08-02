@@ -118,15 +118,22 @@ impl<M: Middleware> ContractError<M> {
         self.as_revert().and_then(|bytes: &Bytes| {
             let data_string: &[u8];
 
-            data_string = &bytes[68..];
+            data_string = &bytes[68..]; //message in 32 last bytes
+
+            // check for length and selector == keccak256("Error(string)")
             if data_string.len() != 32 || bytes[..4] != [0x08, 0xc3, 0x79, 0xa0] {
                 return None
             }
-            let idx = data_string.iter().position(|x| x == "\0".as_bytes().first().unwrap());
-            match idx {
-                Some(i) => String::from_utf8(data_string[0..i].to_vec()).ok(),
-                None => None,
+
+            // remove trailing nullbytes
+            let index = data_string.iter().position(|x| x == "\0".as_bytes().first().unwrap());
+            let idx: usize;
+            match index {
+                Some(i) => idx = i,
+                None => idx = 32 // max string size ; checked above
             }
+            
+            String::from_utf8(data_string[0..idx].to_vec()).ok()
         })
     }
 
